@@ -29,7 +29,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
   
-      - name: Get latest nuget version
+      - name: Get latest Nuget version
         continue-on-error: true
         uses: senmu/download-json-property-action@v1.4.0
         id: nuget-latest-version
@@ -37,15 +37,19 @@ jobs:
           url: https://api.nuget.org/v3/registration5-semver1/${{ inputs.nuget-name }}/index.json
           property_path: items.0.upper
           
-      - name: Set default value if failure
-        if: failure()
-        run: echo "steps.nuget-latest-version.outputs.value=0.0.1" >> "$GITHUB_OUTPUT"
+      - name: Set default version if empty
+        run: |
+          VERSION="${{ steps.nuget-latest-version.outputs.value }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="0.0.1"
+          fi
+          echo "CURRENT_NUGET_VERSION=$VERSION" >> "$GITHUB_ENV"
   
       - name: Increase latest nuget version
         id: nuget-next-version
         uses: christian-draeger/increment-semantic-version@1.1.0
         with:
-          current-version: ${{ steps.nuget-latest-version.outputs.value }}
+          current-version: ${{ CURRENT_NUGET_VERSION }}
           version-fragment: ${{ inputs.version-fragment }}
   
       - name: Pack nuget
