@@ -1,0 +1,16 @@
+name: Latest release
+
+on:
+  push:
+    branches:
+      - 'main'
+    
+jobs:       
+  deploy_main_nuget:
+    uses: ./.github/workflows/deploy_nuget.yml
+    with:
+      project-name: src/CyclicalFileWatcher
+      version-fragment: 'feature'
+      nuget-name: 'CyclicalFileWatcher'
+    secrets:
+      NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}

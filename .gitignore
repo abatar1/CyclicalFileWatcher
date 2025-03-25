@@ -1,0 +1,8 @@
+bin
+obj
+.idea
+packages
+*.DotSettings.user
+*.DotSettings
+*.nupkg
+*.info
