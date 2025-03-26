@@ -16,7 +16,7 @@ jobs:
     uses: ./.github/workflows/deploy_nuget.yml
     needs: [ unit_tests ]
     with:
-      dotnet-version: 'netstandard2.1'
+      dotnet-version: '9'
       project-name: src/CyclicalFileWatcher
       version-fragment: 'feature'
       nuget-name: 'CyclicalFileWatcher'
