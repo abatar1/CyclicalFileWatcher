@@ -33,13 +33,16 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
+          
+      - name: Convert nuget-name to lowercase
+        run: echo "NUGET_NAME=$(echo ${{ inputs.nuget-name }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
   
       - name: Get latest Nuget version
         continue-on-error: true
         uses: senmu/download-json-property-action@v1.4.0
         id: nuget-latest-version
         with:
-          url: https://api.nuget.org/v3/registration5-semver1/${{ inputs.nuget-name }}/index.json
+          url: https://api.nuget.org/v3/registration5-semver1/${{ env.NUGET_NAME }}/index.json
           property_path: items.0.upper
           
       - name: Set default version if empty
@@ -62,4 +65,4 @@ jobs:
           
       - name: Publish NuGet package
         run: |
-          dotnet nuget push ${{ env.NuGetDirectory }}/${{ inputs.nuget-name }}.${{ steps.nuget-next-version.outputs.next-version }}.nupkg -k "${{ secrets.NUGET_TOKEN }}" -s ${{ env.NuGetSource }} --skip-duplicate
+          dotnet nuget push ${{ env.NuGetDirectory }}/${{ env.NUGET_NAME }}.${{ steps.nuget-next-version.outputs.next-version }}.nupkg -k "${{ secrets.NUGET_TOKEN }}" -s ${{ env.NuGetSource }} --skip-duplicate
