@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace CyclicalFileWatcher.Base;
+namespace FileWatcher.Base;
 
 public struct FileSubscription
 {

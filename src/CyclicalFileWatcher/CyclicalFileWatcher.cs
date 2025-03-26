@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using CyclicalFileWatcher.Base;
-using CyclicalFileWatcher.Implementations;
+using FileWatcher.Base;
+using FileWatcher.Internals;
 
-namespace CyclicalFileWatcher;
+namespace FileWatcher;
 
-public sealed class CyclicalFileWatcher<TFileStateContent> : IAsyncDisposable
+public sealed class CyclicalFileWatcher<TFileStateContent> : IFileWatcher<TFileStateContent>
     where TFileStateContent : IFileStateContent
 {
     private readonly IFileStateManager<TFileStateContent> _fileStateManager;

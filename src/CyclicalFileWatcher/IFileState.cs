@@ -1,13 +1,11 @@
 ﻿using System;
 
-namespace CyclicalFileWatcher;
+namespace FileWatcher;
 
 public interface IFileState<TFileStateContent>
     where TFileStateContent : IFileStateContent
 {
-    string FilePath { get; init; }
-    
-    string Key { get; init; }
+    FileStateIdentifier Identifier { get; init; }
     
     DateTime ModifiedAtUtc { get; init; }
     

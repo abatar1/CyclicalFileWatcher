@@ -5,10 +5,10 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using CyclicalFileWatcher.Base;
+using FileWatcher.Base;
 using Nito.AsyncEx;
 
-namespace CyclicalFileWatcher.Implementations;
+namespace FileWatcher.Internals;
 
 internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TFileStateContent>
     where TFileStateContent : IFileStateContent
@@ -18,8 +18,8 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly Task _watchingTask;
     
-    private readonly Dictionary<string, FileStateStorage<TFileStateContent>> _storagesByPath = new();
-    private readonly ConcurrentDictionary<string, AsyncReaderWriterLock> _watchLocksByPath = new();
+    private readonly Dictionary<FileStateIdentifier, FileStateStorage<TFileStateContent>> _storages = new();
+    private readonly ConcurrentDictionary<FileStateIdentifier, AsyncReaderWriterLock> _watchLocks = new();
 
     public FileStateManager(IFileStateManagerConfiguration configuration, IFileSubscriptionTrigger<TFileStateContent> trigger)
     {
@@ -34,12 +34,14 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
     public async Task<IFileState<TFileStateContent>> GetAsync(string filePath, string fileKey, CancellationToken cancellationToken)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cancellationTokenSource.Token);
+
+        var identifier = new FileStateIdentifier(filePath);
         
-        using var _ = await AcquireReaderLockAsync(filePath, cts.Token);
+        using var _ = await AcquireReaderLockAsync(identifier, cts.Token);
         
-        if (_storagesByPath.TryGetValue(filePath, out var storage))
+        if (_storages.TryGetValue(identifier, out var storage))
             return await storage.GetFileStateAsync(fileKey, cts.Token);
-        throw new FileNotFoundException($"No file found for path {filePath} and kid {fileKey}, existing keys are: {string.Join(',', _storagesByPath.Keys)}.");
+        throw new FileNotFoundException($"No file found for path {filePath} and kid {fileKey}, existing keys are: {string.Join(',', _storages.Keys)}.");
     }
     
     /// <exception cref="FileNotFoundException">file found on path filePath, ensure WatchAsync has been called</exception>
@@ -47,25 +49,29 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cancellationTokenSource.Token);
         
-        using var _ = await AcquireReaderLockAsync(filePath, cts.Token);
+        var identifier = new FileStateIdentifier(filePath);
+        
+        using var _ = await AcquireReaderLockAsync(identifier, cts.Token);
 
-        if (_storagesByPath.TryGetValue(filePath, out var storage))
+        if (_storages.TryGetValue(identifier, out var storage))
             return await storage.GetLatestFileStateAsync(cts.Token);
-        throw new FileNotFoundException($"No certificate found for path {filePath}, existing keys are: {string.Join(',', _storagesByPath.Keys)}.");
+        throw new FileNotFoundException($"No certificate found for path {filePath}, existing keys are: {string.Join(',', _storages.Keys)}.");
     }
     
     /// <exception cref="ArgumentException">depth must be greater than 0</exception>
     /// <exception cref="FileNotFoundException">file found on path filePath</exception>
     public async Task WatchAsync(FileWatcherParameters<TFileStateContent> fileWatcherParameters, CancellationToken cancellationToken)
     {
-        using var _ = await AcquireWriterLockAsync(fileWatcherParameters.FilePath, cancellationToken);
+        var identifier = new FileStateIdentifier(fileWatcherParameters.FilePath);
+        
+        using var _ = await AcquireWriterLockAsync(identifier, cancellationToken);
 
         ValidateWatcherParameters(fileWatcherParameters);
         
-        if (_storagesByPath.ContainsKey(fileWatcherParameters.FilePath))
+        if (_storages.ContainsKey(identifier))
             return;
         
-        _storagesByPath[fileWatcherParameters.FilePath] = new FileStateStorage<TFileStateContent>(fileWatcherParameters);
+        _storages[identifier] = new FileStateStorage<TFileStateContent>(fileWatcherParameters);
     }
 
     private void ValidateWatcherParameters(FileWatcherParameters<TFileStateContent> fileWatcherParameters)
@@ -84,30 +90,52 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
+                    var tasks = _storages.Select(async x =>
+                    {
+                        FileState<TFileStateContent> file;
+                        try
+                        {
+                            using var _ = await AcquireWriterLockAsync(x.Key, cancellationToken);
+                            var hasReloadedFile = await x.Value.TryUpdateFileStateAsync(cancellationToken);
+                            if (!hasReloadedFile)
+                                return;
+                            
+                            file = await x.Value.GetLatestFileStateAsync(cancellationToken);
+                            await _configuration.ActionOnFileReloaded.Invoke(file.Identifier);
+                        }
+                        catch (Exception e)
+                        {
+                            throw new FileWatcherReloadException(x.Key, e);
+                        }
+
+                        try
+                        {
+                            await _trigger.TriggerSubscriptionsAsync(file, cancellationToken);
+                            await _configuration.ActionOnSubscribeAction.Invoke(file.Identifier);
+                        }
+                        catch (Exception e)
+                        {
+                            throw new FileWatcherSubscriptionException(x.Key, e);
+                        }
+                    });
+
                     try
                     {
-                        var tasks = _storagesByPath.Select(async x =>
-                        {
-                            FileState<TFileStateContent> file;
-                            using (var _ = await AcquireWriterLockAsync(x.Key, cancellationToken))
-                            {
-                                var hasReloadedFile = await x.Value.TryUpdateFileStateAsync(cancellationToken);
-                                if (!hasReloadedFile)
-                                    return;
-                               
-                                file = await x.Value.GetLatestFileStateAsync(cancellationToken);
-                                await _configuration.ActionOnReloaded.Invoke();
-                            }
-                          
-                            await _trigger.TriggerSubscriptionsAsync(file, cancellationToken);
-                        });
                         await Task.WhenAll(tasks);
                     }
-                    catch (Exception e)
+                    catch (AggregateException e)
                     {
-                        if (e is AggregateException aggregateException)
-                            e = aggregateException.Flatten();
-                        await _configuration.ActionOnFailedReload.Invoke(e);
+                        var exceptions = e.Flatten().InnerExceptions
+                            .ToList();
+                        foreach (var exception in exceptions)
+                        {
+                            if (exception is FileWatcherReloadException fileWatcherReloadException)
+                                await _configuration.ActionOnFileReloadFailed.Invoke(fileWatcherReloadException);
+                            else if (exception is FileWatcherSubscriptionException fileWatcherSubscriptionException)
+                                await _configuration.ActionOnSubscribeActionFailed.Invoke(fileWatcherSubscriptionException);
+                        }
+                          
+                        throw;
                     }
                     finally
                     {
@@ -117,15 +145,15 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
             }, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
     
-    private async Task<IDisposable> AcquireReaderLockAsync(string certificatePath, CancellationToken cancellationToken)
+    private async Task<IDisposable> AcquireReaderLockAsync(FileStateIdentifier identifier, CancellationToken cancellationToken)
     {
-        var watchLock = _watchLocksByPath.GetOrAdd(certificatePath, _ => new AsyncReaderWriterLock());
+        var watchLock = _watchLocks.GetOrAdd(identifier, _ => new AsyncReaderWriterLock());
         return await watchLock.ReaderLockAsync(cancellationToken);
     }
 
-    private async Task<IDisposable> AcquireWriterLockAsync(string certificatePath, CancellationToken cancellationToken)
+    private async Task<IDisposable> AcquireWriterLockAsync(FileStateIdentifier identifier, CancellationToken cancellationToken)
     {
-        var watchLock = _watchLocksByPath.GetOrAdd(certificatePath, _ => new AsyncReaderWriterLock());
+        var watchLock = _watchLocks.GetOrAdd(identifier, _ => new AsyncReaderWriterLock());
         return await watchLock.WriterLockAsync(cancellationToken);
     }
     
@@ -150,7 +178,7 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
         await CastAndDispose(_cancellationTokenSource);
         await CastAndDispose(_watchingTask);
         
-        foreach (var storage in _storagesByPath.Values)
+        foreach (var storage in _storages.Values)
             await storage.DisposeAsync();
 
         return;

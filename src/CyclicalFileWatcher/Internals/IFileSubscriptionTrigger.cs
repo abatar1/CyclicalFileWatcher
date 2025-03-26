@@ -1,7 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-namespace CyclicalFileWatcher.Implementations;
+namespace FileWatcher.Internals;
 
 internal interface IFileSubscriptionTrigger<TFileStateContent>
     where TFileStateContent : IFileStateContent

@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace CyclicalFileWatcher.Implementations;
+namespace FileWatcher.Internals;
 
 internal sealed class FileState<TFileStateContent> : IFileState<TFileStateContent>, IAsyncDisposable
     where TFileStateContent : IFileStateContent
 { 
-    public required string FilePath { get; init; }
+    public required FileStateIdentifier Identifier { get; init; }
     
     public required string Key { get; init; }
     

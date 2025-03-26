@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using CyclicalFileWatcher.Base;
+using FileWatcher.Base;
 using Nito.AsyncEx;
 
-namespace CyclicalFileWatcher.Implementations;
+namespace FileWatcher.Internals;
 
 internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
     where TFileStateContent : IFileStateContent
@@ -84,14 +84,14 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
 
         var fileState = new FileState<TFileStateContent>
         {
-            FilePath = fileWatcherParameters.FilePath,
-            Key = key,
+            Identifier = new FileStateIdentifier(fileWatcherParameters.FilePath),
             ModifiedAtUtc = GetLastModificationDateTime(fileWatcherParameters.FilePath),
-            Content = fileStateContent
+            Content = fileStateContent,
+            Key = key
         };
 
-        _filesStatesByKeys[fileState.Key] = fileState;
-        _fileStateKeysOrder.AddLast(fileState.Key);
+        _filesStatesByKeys[key] = fileState;
+        _fileStateKeysOrder.AddLast(key);
 
         if (_fileStateKeysOrder.Count > fileWatcherParameters.Depth + 1)
         {

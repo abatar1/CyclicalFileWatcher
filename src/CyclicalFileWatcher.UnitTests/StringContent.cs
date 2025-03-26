@@ -1,4 +1,6 @@
-﻿namespace CyclicalFileWatcher.UnitTests;
+﻿using FileWatcher;
+
+namespace CyclicalFileWatcher.UnitTests;
 
 internal sealed class StringContent : IFileStateContent
 {

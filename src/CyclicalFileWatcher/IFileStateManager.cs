@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using CyclicalFileWatcher.Base;
+using FileWatcher.Base;
 
-namespace CyclicalFileWatcher;
+namespace FileWatcher;
 
 public interface IFileStateManager<TFileStateContent> : IAsyncDisposable
     where TFileStateContent : IFileStateContent

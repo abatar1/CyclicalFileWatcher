@@ -1,4 +1,5 @@
-﻿using Moq;
+﻿using FileWatcher;
+using Moq;
 using Xunit;
 
 namespace CyclicalFileWatcher.UnitTests;

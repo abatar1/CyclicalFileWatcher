@@ -1,5 +1,5 @@
 ﻿using System;
 
-namespace CyclicalFileWatcher;
+namespace FileWatcher;
 
 public interface IFileStateContent : IAsyncDisposable;

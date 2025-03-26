@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace CyclicalFileWatcher.Base;
+namespace FileWatcher.Base;
 
 public sealed class FileWatcherParameters<TFileStateContent>
     where TFileStateContent : IFileStateContent

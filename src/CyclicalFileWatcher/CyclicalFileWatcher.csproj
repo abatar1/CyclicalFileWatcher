@@ -7,7 +7,7 @@
         <Nullable>enable</Nullable>
         
         <IsPackable>true</IsPackable>
-        <RootNamespace>CyclicalFileWatcher</RootNamespace>
+        <RootNamespace>FileWatcher</RootNamespace>
 
         <PackageId>CyclicalFileWatcher</PackageId>
         <Authors>Evgeny Halzov</Authors>
