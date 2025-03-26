@@ -8,11 +8,15 @@ on:
 jobs:
   unit_tests:
     uses: ./.github/workflows/unit_tests.yml
+    with:
+      dotnet-version: '9'
+      test-project-path: 'src/CyclicalFileWatcher.UnitTests'
   
   deploy_main_nuget:
     uses: ./.github/workflows/deploy_nuget.yml
     needs: [ unit_tests ]
     with:
+      dotnet-version: 'netstandard2.1'
       project-name: src/CyclicalFileWatcher
       version-fragment: 'feature'
       nuget-name: 'CyclicalFileWatcher'

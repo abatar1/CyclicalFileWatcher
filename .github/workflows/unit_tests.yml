@@ -1,5 +1,12 @@
 on:
   workflow_call:
+    inputs:
+      test-project-path:
+        required: true
+        type: string
+      dotnet-version:
+        required: true
+        type: string
     
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
@@ -14,10 +21,10 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9
+          dotnet-version: ${{ inputs.dotnet-version }}
 
       - name: Run unit tests
-        run: dotnet test src/CyclicalFileWatcher.UnitTests -c Release
+        run: dotnet test ${{ inputs.test-project-path }} -c Release
           /p:CollectCoverage=true
           /p:CoverletOutput=TestResults/
           /p:CoverletOutputFormat=lcov
@@ -26,5 +33,5 @@ jobs:
         uses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: src/CyclicalFileWatcher.UnitTests/TestResults/coverage.info
+          path-to-lcov: ${{ inputs.test-project-path }}/TestResults/coverage.info
           flag-name: release
