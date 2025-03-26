@@ -5,9 +5,13 @@ on:
     branches:
       - 'main'
     
-jobs:       
+jobs:
+  unit_tests:
+    uses: ./.github/workflows/unit_tests.yml
+  
   deploy_main_nuget:
     uses: ./.github/workflows/deploy_nuget.yml
+    needs: [ unit_tests ]
     with:
       project-name: src/CyclicalFileWatcher
       version-fragment: 'feature'

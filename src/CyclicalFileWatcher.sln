@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CyclicalFileWatcher", "CyclicalFileWatcher\CyclicalFileWatcher.csproj", "{CBA47DBB-AD6A-4B2B-BC85-628726B913C9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CyclicalFileWatcher.UnitTests", "CyclicalFileWatcher.UnitTests\CyclicalFileWatcher.UnitTests.csproj", "{90631A1E-7ABC-4AA9-BDC5-DD3C64099EE3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{CBA47DBB-AD6A-4B2B-BC85-628726B913C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CBA47DBB-AD6A-4B2B-BC85-628726B913C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CBA47DBB-AD6A-4B2B-BC85-628726B913C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{90631A1E-7ABC-4AA9-BDC5-DD3C64099EE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{90631A1E-7ABC-4AA9-BDC5-DD3C64099EE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{90631A1E-7ABC-4AA9-BDC5-DD3C64099EE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{90631A1E-7ABC-4AA9-BDC5-DD3C64099EE3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
