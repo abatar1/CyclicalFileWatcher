@@ -44,7 +44,7 @@ public sealed class CyclicalFileWatcher<TFileStateContent> : IFileWatcher<TFileS
         return _subscriptionManager.SubscribeAsync(filePath, actionOnUpdate, cancellationToken);
     }
 
-    public Task Unsubscribe(FileSubscription subscription, CancellationToken cancellationToken)
+    public Task UnsubscribeAsync(FileSubscription subscription, CancellationToken cancellationToken)
     {
         return _subscriptionManager.Unsubscribe(subscription, cancellationToken);
     }

@@ -66,8 +66,7 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
         
         while (!cancellationToken.IsCancellationRequested)
         {
-            var fileCanBeLoaded = await CheckFileCanBeLoadedAsync(parameters.FilePath);
-            if (fileCanBeLoaded)
+            if (await CheckFileCanBeLoadedAsync(parameters.FilePath))
                 break;
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
         }
@@ -97,6 +96,7 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
         {
             var oldestKey = _fileStateKeysOrder.First.Value;
             _fileStateKeysOrder.RemoveFirst();
+            await _filesStatesByKeys[oldestKey].Content.DisposeAsync();
             _filesStatesByKeys.Remove(oldestKey, out _);
         }
     }

@@ -16,5 +16,5 @@ public interface IFileWatcher<TFileStateContent> : IAsyncDisposable
 
     Task<FileSubscription> SubscribeAsync(string filePath, Func<IFileState<TFileStateContent>, Task> actionOnUpdate, CancellationToken cancellationToken);
 
-    Task Unsubscribe(FileSubscription subscription, CancellationToken cancellationToken);
+    Task UnsubscribeAsync(FileSubscription subscription, CancellationToken cancellationToken);
 }
