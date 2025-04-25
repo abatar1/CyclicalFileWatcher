@@ -92,12 +92,12 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
         _filesStatesByKeys[key] = fileState;
         _fileStateKeysOrder.AddLast(key);
 
-        if (_fileStateKeysOrder.Count > fileWatcherParameters.Depth + 1)
+        if (_fileStateKeysOrder.Count > fileWatcherParameters.Depth)
         {
             var oldestKey = _fileStateKeysOrder.First.Value;
             _fileStateKeysOrder.RemoveFirst();
-            await _filesStatesByKeys[oldestKey].Content.DisposeAsync();
-            _filesStatesByKeys.Remove(oldestKey, out _);
+            _filesStatesByKeys.Remove(oldestKey, out var oldestFileState);
+            await oldestFileState.DisposeAsync();
         }
     }
     
