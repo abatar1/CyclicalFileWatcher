@@ -29,8 +29,6 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
         _watchingTask = CreateWatchingTask(_cancellationTokenSource.Token);
     }
     
-    /// <exception cref="FileNotFoundException">file found on path filePath, ensure WatchAsync has been called</exception>
-    /// <exception cref="KeyNotFoundException">file was found, but key is not</exception>
     public async Task<IFileState<TFileStateContent>> GetAsync(string filePath, string fileKey, CancellationToken cancellationToken)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cancellationTokenSource.Token);
@@ -44,7 +42,6 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
         throw new FileNotFoundException($"No file found for path {filePath} and kid {fileKey}, existing keys are: {string.Join(',', _storages.Keys)}.");
     }
     
-    /// <exception cref="FileNotFoundException">file found on path filePath, ensure WatchAsync has been called</exception>
     public async Task<IFileState<TFileStateContent>> GetLatestAsync(string filePath, CancellationToken cancellationToken)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cancellationTokenSource.Token);
@@ -58,8 +55,6 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
         throw new FileNotFoundException($"No certificate found for path {filePath}, existing keys are: {string.Join(',', _storages.Keys)}.");
     }
     
-    /// <exception cref="ArgumentException">depth must be greater than 0</exception>
-    /// <exception cref="FileNotFoundException">file found on path filePath</exception>
     public async Task WatchAsync(FileWatcherParameters<TFileStateContent> fileWatcherParameters, CancellationToken cancellationToken)
     {
         var identifier = new FileStateIdentifier(fileWatcherParameters.FilePath);
@@ -92,31 +87,13 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
                 {
                     var tasks = _storages.Select(async x =>
                     {
-                        FileState<TFileStateContent> file;
-                        try
-                        {
-                            using var _ = await AcquireWriterLockAsync(x.Key, cancellationToken);
-                            var hasReloadedFile = await x.Value.TryUpdateFileStateAsync(cancellationToken);
-                            if (!hasReloadedFile)
-                                return;
-                            
-                            file = await x.Value.GetLatestFileStateAsync(cancellationToken);
-                            await _configuration.ActionOnFileReloaded.Invoke(file.Identifier);
-                        }
-                        catch (Exception e)
-                        {
-                            throw new FileWatcherReloadException(x.Key, e);
-                        }
-
-                        try
-                        {
-                            await _trigger.TriggerSubscriptionsAsync(file, cancellationToken);
-                            await _configuration.ActionOnSubscribeAction.Invoke(file.Identifier);
-                        }
-                        catch (Exception e)
-                        {
-                            throw new FileWatcherSubscriptionException(x.Key, e);
-                        }
+                        using var _ = await AcquireWriterLockAsync(x.Key, cancellationToken);
+                        
+                        var file = await TryUpdateFileStateAsync(x.Key, x.Value, cancellationToken);
+                        if (file == null)
+                            return;
+                       
+                        await TryTriggerSubscriptionAsync(file, cancellationToken);
                     });
 
                     try
@@ -125,16 +102,7 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
                     }
                     catch (AggregateException e)
                     {
-                        var exceptions = e.Flatten().InnerExceptions
-                            .ToList();
-                        foreach (var exception in exceptions)
-                        {
-                            if (exception is FileWatcherReloadException fileWatcherReloadException)
-                                await _configuration.ActionOnFileReloadFailed.Invoke(fileWatcherReloadException);
-                            else if (exception is FileWatcherSubscriptionException fileWatcherSubscriptionException)
-                                await _configuration.ActionOnSubscribeActionFailed.Invoke(fileWatcherSubscriptionException);
-                        }
-                          
+                        await ProcessFileUpdateExceptionAsync(e);
                         throw;
                     }
                     finally
@@ -143,6 +111,50 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
                     }
                 }
             }, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+    }
+
+    private async Task<FileState<TFileStateContent>?> TryUpdateFileStateAsync(FileStateIdentifier identifier, FileStateStorage<TFileStateContent> fileStateStorage, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var hasReloadedFile = await fileStateStorage.TryUpdateFileStateAsync(cancellationToken);
+            if (!hasReloadedFile)
+                return null;
+                            
+            var file = await fileStateStorage.GetLatestFileStateAsync(cancellationToken);
+            await _configuration.ActionOnFileReloaded.Invoke(file.Identifier);
+            return file;
+        }
+        catch (Exception e)
+        {
+            throw new FileWatcherReloadException(identifier, e);
+        }
+    }
+
+    private async Task TryTriggerSubscriptionAsync(FileState<TFileStateContent> file, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _trigger.TriggerSubscriptionsAsync(file, cancellationToken);
+            await _configuration.ActionOnSubscribeAction.Invoke(file.Identifier);
+        }
+        catch (Exception e)
+        {
+            throw new FileWatcherSubscriptionException(file.Identifier, e);
+        }
+    }
+
+    private async Task ProcessFileUpdateExceptionAsync(AggregateException e)
+    {
+        var exceptions = e.Flatten().InnerExceptions
+            .ToList();
+        foreach (var exception in exceptions)
+        {
+            if (exception is FileWatcherReloadException fileWatcherReloadException)
+                await _configuration.ActionOnFileReloadFailed.Invoke(fileWatcherReloadException);
+            else if (exception is FileWatcherSubscriptionException fileWatcherSubscriptionException)
+                await _configuration.ActionOnSubscribeActionFailed.Invoke(fileWatcherSubscriptionException);
+        }
     }
     
     private async Task<IDisposable> AcquireReaderLockAsync(FileStateIdentifier identifier, CancellationToken cancellationToken)

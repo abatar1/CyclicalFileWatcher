@@ -3,6 +3,9 @@ using System.Threading.Tasks;
 
 namespace FileWatcher;
 
+/// <summary>
+/// Represents the configuration settings required by the file state manager to manage file watching functionality.
+/// </summary>
 public sealed class FileStateManagerConfiguration : IFileStateManagerConfiguration
 {
     public required TimeSpan FileCheckInterval { get; init; }

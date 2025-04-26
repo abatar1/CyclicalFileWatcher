@@ -3,6 +3,9 @@ using System.Threading.Tasks;
 
 namespace FileWatcher;
 
+/// <summary>
+/// Provides the configuration interface for managing file state operations in a file watcher system.
+/// </summary>
 public interface IFileStateManagerConfiguration
 {
     TimeSpan FileCheckInterval { get; init; }

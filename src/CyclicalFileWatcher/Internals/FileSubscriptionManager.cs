@@ -40,7 +40,7 @@ internal sealed class FileSubscriptionManager<TFileStateContent> : IFileSubscrip
         }
     }
 
-    public async Task Unsubscribe(FileSubscription subscription, CancellationToken cancellationToken)
+    public async Task UnsubscribeAsync(FileSubscription subscription, CancellationToken cancellationToken)
     {
         var identifier = new FileStateIdentifier(subscription.FilePath);
         var subscribeLock = _subscribeLocks.GetOrAdd(identifier, _ => new SemaphoreSlim(1, 1));
