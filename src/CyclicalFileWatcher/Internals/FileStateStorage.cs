@@ -78,8 +78,8 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
     
     private async Task AppendFileStateAsync(FileWatcherParameters<TFileStateContent> fileWatcherParameters)
     {
-        var fileStateContent = await fileWatcherParameters.FileStateContentFactory.Invoke();
-        var key = await fileWatcherParameters.FileStateKeyFactory.Invoke(fileStateContent);
+        var fileStateContent = await fileWatcherParameters.FileStateContentFactory.Invoke(fileWatcherParameters.FilePath);
+        var key = await fileWatcherParameters.FileStateKeyFactory.Invoke(fileWatcherParameters.FilePath, fileStateContent);
 
         var fileState = new FileState<TFileStateContent>
         {

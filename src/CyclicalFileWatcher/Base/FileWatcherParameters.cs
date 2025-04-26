@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
-
-namespace FileWatcher.Base;
+﻿namespace FileWatcher.Base;
 
 public sealed class FileWatcherParameters<TFileStateContent>
     where TFileStateContent : IFileStateContent
@@ -10,7 +7,7 @@ public sealed class FileWatcherParameters<TFileStateContent>
     
     public required int Depth { get; init; }
     
-    public required Func<Task<TFileStateContent>> FileStateContentFactory { get; init; }
+    public required FileStateContentFactory<TFileStateContent> FileStateContentFactory { get; init; }
     
-    public required Func<TFileStateContent, Task<string>> FileStateKeyFactory { get; init; }
+    public required FileStateKeyFactory<TFileStateContent> FileStateKeyFactory { get; init; }
 }

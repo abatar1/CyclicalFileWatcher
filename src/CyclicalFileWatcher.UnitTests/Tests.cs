@@ -11,7 +11,7 @@ public sealed class Tests
     {
         var configurationMock = new Mock<IFileStateManagerConfiguration>();
         
-        var _ = new CyclicalFileWatcher<StringContent>(configurationMock.Object);
+        _ = new CyclicalFileWatcher<StringContent>(configurationMock.Object);
         
         Assert.True(true);
     }
