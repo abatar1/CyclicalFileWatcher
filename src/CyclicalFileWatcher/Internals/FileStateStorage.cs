@@ -59,7 +59,7 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
             return false;
         }
         
-        var lastModificationDateTime = GetLastModificationDateTime(parameters.FilePath);
+        var lastModificationDateTime = GetLastModificationTimeUtc(parameters.FilePath);
         
         if (latestFileState.ModifiedAtUtc == lastModificationDateTime)
             return false;
@@ -84,7 +84,7 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
         var fileState = new FileState<TFileStateContent>
         {
             Identifier = new FileStateIdentifier(fileWatcherParameters.FilePath),
-            ModifiedAtUtc = GetLastModificationDateTime(fileWatcherParameters.FilePath),
+            ModifiedAtUtc = GetLastModificationTimeUtc(fileWatcherParameters.FilePath),
             Content = fileStateContent,
             Key = key
         };
@@ -120,10 +120,9 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
         return true;
     }
     
-    private static DateTime GetLastModificationDateTime(string certificatePath)
+    private static DateTime GetLastModificationTimeUtc(string certificatePath)
     {
-        var fileInfo = new FileInfo(certificatePath);
-        return fileInfo.LastWriteTime;
+        return File.GetLastWriteTimeUtc(certificatePath);
     }
 
     public async ValueTask DisposeAsync()
