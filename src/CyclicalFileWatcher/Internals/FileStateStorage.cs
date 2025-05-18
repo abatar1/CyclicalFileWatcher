@@ -15,7 +15,6 @@ internal sealed class FileStateStorage<TFileStateContent> : IFileStateStorage<TF
     private readonly ConcurrentDictionary<string, FileState<TFileStateContent>> _filesStatesByKeys = new();
     private readonly IFileSystemProxy _fileSystemProxy;
     private readonly LinkedList<string> _fileStateKeysOrder = [];
-    private readonly object _syncRoot = new();
     
     public FileStateIdentifier Identifier { get; }
 
@@ -94,23 +93,16 @@ internal sealed class FileStateStorage<TFileStateContent> : IFileStateStorage<TF
             Key = key
         };
         
-        FileState<TFileStateContent>? oldestFileState = null;
+        _filesStatesByKeys[key] = fileState;
+        _fileStateKeysOrder.AddLast(key);
 
-        lock (_syncRoot)
+        if (_fileStateKeysOrder.Count > fileWatcherParameters.Depth)
         {
-            _filesStatesByKeys[key] = fileState;
-            _fileStateKeysOrder.AddLast(key);
-
-            if (_fileStateKeysOrder.Count > fileWatcherParameters.Depth)
-            {
-                var oldestKey = _fileStateKeysOrder.First.Value;
-                _fileStateKeysOrder.RemoveFirst();
-                _filesStatesByKeys.TryRemove(oldestKey, out oldestFileState);
-            }
-        }
-        
-        if (oldestFileState != null)
+            var oldestKey = _fileStateKeysOrder.First.Value;
+            _fileStateKeysOrder.RemoveFirst();
+            _filesStatesByKeys.TryRemove(oldestKey, out var oldestFileState);
             await oldestFileState.DisposeAsync();
+        }
     }
 
     public async ValueTask DisposeAsync()
