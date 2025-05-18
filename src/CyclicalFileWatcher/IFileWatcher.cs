@@ -21,7 +21,7 @@ public interface IFileWatcher<TFileStateContent> : IAsyncDisposable
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
     /// <exception cref="ArgumentException">Thrown when the depth in parameters is less than or equal to 0.</exception>
     /// <exception cref="FileNotFoundException">Thrown when the specified file is not found on the given path.</exception>
-    Task WatchAsync(FileWatcherParameters<TFileStateContent> parameters, CancellationToken cancellationToken);
+    Task WatchAsync(IFileWatcherParameters<TFileStateContent> parameters, CancellationToken cancellationToken);
 
     /// <summary>
     /// Retrieves the state of a file using the specified file path and key.

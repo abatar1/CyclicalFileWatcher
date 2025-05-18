@@ -2,7 +2,7 @@
 
 namespace CyclicalFileWatcher.UnitTests;
 
-internal sealed class StringContent : IFileStateContent
+public sealed class StringContent : IFileStateContent
 {
     public required string Content { get; init; }
     

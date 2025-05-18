@@ -1,4 +1,8 @@
 ﻿using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("CyclicalFileWatcher.UnitTests")]
+[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")] 
 
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedMember.Global
@@ -33,3 +37,4 @@ internal sealed class CompilerFeatureRequiredAttribute(string featureName) : Att
 [AttributeUsage(AttributeTargets.Constructor)]
 internal sealed class SetsRequiredMembersAttribute : Attribute;
 #endif
+

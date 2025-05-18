@@ -1,6 +1,6 @@
 ﻿namespace FileWatcher.Base;
 
-public sealed class FileWatcherParameters<TFileStateContent>
+public sealed class FileWatcherParameters<TFileStateContent> : IFileWatcherParameters<TFileStateContent>
     where TFileStateContent : IFileStateContent
 {
     public required string FilePath { get; init; }

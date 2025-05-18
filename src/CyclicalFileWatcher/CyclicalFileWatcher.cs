@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FileWatcher.Base;
@@ -8,6 +6,14 @@ using FileWatcher.Internals;
 
 namespace FileWatcher;
 
+/// <summary>
+/// Represents a cyclical file watcher that monitors file changes and allows subscribing
+/// to file state updates. This class facilitates managing file states, retrieving the
+/// latest file information, and providing mechanisms to handle file updates asynchronously.
+/// </summary>
+/// <typeparam name="TFileStateContent">
+/// The type of content for file state management. It must implement the <see cref="IFileStateContent"/> interface.
+/// </typeparam>
 public sealed class CyclicalFileWatcher<TFileStateContent> : IFileWatcher<TFileStateContent>
     where TFileStateContent : IFileStateContent
 {
@@ -17,23 +23,33 @@ public sealed class CyclicalFileWatcher<TFileStateContent> : IFileWatcher<TFileS
     public CyclicalFileWatcher(IFileStateManagerConfiguration configuration)
     {
         _subscriptionManager = new FileSubscriptionManager<TFileStateContent>();
-        _fileStateManager = new FileStateManager<TFileStateContent>(configuration, _subscriptionManager);
+        var fileProxy = new FileSystemProxy();
+        var repository = new FileStateStorageRepository<TFileStateContent>(fileProxy);
+        var lockProvider = new ReadWriteLockProvider();
+        var processor = new FileWatchProcessor<TFileStateContent>(configuration, _subscriptionManager, lockProvider, repository);
+        _fileStateManager = new FileStateManager<TFileStateContent>(repository, processor, lockProvider, fileProxy);
     }
-
-    /// <exception cref="FileNotFoundException">file found on path filePath, ensure WatchAsync has been called</exception>
-    public Task WatchAsync(FileWatcherParameters<TFileStateContent> parameters, CancellationToken cancellationToken)
+    
+    internal CyclicalFileWatcher(IFileStateManagerConfiguration configuration, 
+        IFileStateStorageRepository<TFileStateContent> repository, 
+        IFileSystemProxy fileSystemProxy)
+    {
+        _subscriptionManager = new FileSubscriptionManager<TFileStateContent>();
+        var lockProvider = new ReadWriteLockProvider();
+        var processor = new FileWatchProcessor<TFileStateContent>(configuration, _subscriptionManager, lockProvider, repository);
+        _fileStateManager = new FileStateManager<TFileStateContent>(repository, processor, lockProvider, fileSystemProxy);
+    }
+    
+    public Task WatchAsync(IFileWatcherParameters<TFileStateContent> parameters, CancellationToken cancellationToken)
     {
         return _fileStateManager.WatchAsync(parameters, cancellationToken);
     }
     
-    /// <exception cref="FileNotFoundException">file found on path filePath, ensure WatchAsync has been called</exception>
-    /// <exception cref="KeyNotFoundException">file was found, but key is not</exception>
     public Task<IFileState<TFileStateContent>> GetAsync(string filePath, string fileKey, CancellationToken cancellationToken)
     {
         return _fileStateManager.GetAsync(filePath, fileKey, cancellationToken);
     }
-
-    /// <exception cref="FileNotFoundException">file found on path filePath, ensure WatchAsync has been called</exception>
+    
     public Task<IFileState<TFileStateContent>> GetLatestAsync(string filePath, CancellationToken cancellationToken)
     {
         return _fileStateManager.GetLatestAsync(filePath, cancellationToken);

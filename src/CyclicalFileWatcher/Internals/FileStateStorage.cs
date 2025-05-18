@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FileWatcher.Base;
@@ -9,16 +8,22 @@ using Nito.AsyncEx;
 
 namespace FileWatcher.Internals;
 
-internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
+internal sealed class FileStateStorage<TFileStateContent> : IFileStateStorage<TFileStateContent>
     where TFileStateContent : IFileStateContent
 {
-    private readonly AsyncLazy<FileWatcherParameters<TFileStateContent>> _fileWatcherParameters;
+    private readonly AsyncLazy<IFileWatcherParameters<TFileStateContent>> _fileWatcherParameters;
     private readonly ConcurrentDictionary<string, FileState<TFileStateContent>> _filesStatesByKeys = new();
-    private readonly LinkedList<string> _fileStateKeysOrder = new();
+    private readonly IFileSystemProxy _fileSystemProxy;
+    private readonly LinkedList<string> _fileStateKeysOrder = [];
+    private readonly object _syncRoot = new();
+    
+    public FileStateIdentifier Identifier { get; }
 
-    public FileStateStorage(FileWatcherParameters<TFileStateContent> fileWatcherParameters)
+    public FileStateStorage(IFileWatcherParameters<TFileStateContent> fileWatcherParameters, IFileSystemProxy fileSystemProxy)
     {
-        _fileWatcherParameters = new AsyncLazy<FileWatcherParameters<TFileStateContent>>(async () =>
+        _fileSystemProxy = fileSystemProxy;
+        Identifier = new FileStateIdentifier(fileWatcherParameters.FilePath);
+        _fileWatcherParameters = new AsyncLazy<IFileWatcherParameters<TFileStateContent>>(async () =>
         {
             await AppendFileStateAsync(fileWatcherParameters);
             return fileWatcherParameters;
@@ -26,7 +31,7 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
         _fileWatcherParameters.Start();
     }
 
-    public async Task<FileState<TFileStateContent>> GetFileStateAsync(string key, CancellationToken cancellationToken)
+    public async Task<FileState<TFileStateContent>> GetAsync(string key, CancellationToken cancellationToken)
     {
         var parameters = await _fileWatcherParameters.Task.WaitAsync(cancellationToken);
         
@@ -35,38 +40,38 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
         return file;
     }
     
-    public async Task<FileState<TFileStateContent>> GetLatestFileStateAsync(CancellationToken cancellationToken)
+    public async Task<FileState<TFileStateContent>> GetLatestAsync(CancellationToken cancellationToken)
     {
         var parameters = await _fileWatcherParameters.Task.WaitAsync(cancellationToken);
         
         var latestKey = _fileStateKeysOrder.Last?.Value;
         if (latestKey == null)
             throw new InvalidOperationException($"No files added yet, could not retrieve latest file from filepath {parameters.FilePath}, seems like a bug");
-        return await GetFileStateAsync(latestKey, cancellationToken);
+        return await GetAsync(latestKey, cancellationToken);
     } 
     
-    public async Task<bool> TryUpdateFileStateAsync(CancellationToken cancellationToken)
+    public async Task<bool> HasChangedAsync(CancellationToken cancellationToken)
     {
         var parameters = await _fileWatcherParameters.Task.WaitAsync(cancellationToken);
         
         FileState<TFileStateContent> latestFileState;
         try
         {
-            latestFileState = await GetLatestFileStateAsync(cancellationToken);
+            latestFileState = await GetLatestAsync(cancellationToken);
         }
         catch (Exception)
         {
             return false;
         }
         
-        var lastModificationDateTime = GetLastModificationTimeUtc(parameters.FilePath);
+        var lastModificationDateTime = _fileSystemProxy.GetLastWriteTimeUtc(parameters.FilePath);
         
         if (latestFileState.ModifiedAtUtc == lastModificationDateTime)
             return false;
         
         while (!cancellationToken.IsCancellationRequested)
         {
-            if (await CheckFileCanBeLoadedAsync(parameters.FilePath))
+            if (await _fileSystemProxy.CheckFileCanBeLoadedAsync(parameters.FilePath))
                 break;
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
         }
@@ -76,7 +81,7 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
         return true;
     }
     
-    private async Task AppendFileStateAsync(FileWatcherParameters<TFileStateContent> fileWatcherParameters)
+    private async Task AppendFileStateAsync(IFileWatcherParameters<TFileStateContent> fileWatcherParameters)
     {
         var fileStateContent = await fileWatcherParameters.FileStateContentFactory.Invoke(fileWatcherParameters.FilePath);
         var key = await fileWatcherParameters.FileStateKeyFactory.Invoke(fileWatcherParameters.FilePath, fileStateContent);
@@ -84,45 +89,28 @@ internal sealed class FileStateStorage<TFileStateContent> : IAsyncDisposable
         var fileState = new FileState<TFileStateContent>
         {
             Identifier = new FileStateIdentifier(fileWatcherParameters.FilePath),
-            ModifiedAtUtc = GetLastModificationTimeUtc(fileWatcherParameters.FilePath),
+            ModifiedAtUtc = _fileSystemProxy.GetLastWriteTimeUtc(fileWatcherParameters.FilePath),
             Content = fileStateContent,
             Key = key
         };
-
-        _filesStatesByKeys[key] = fileState;
-        _fileStateKeysOrder.AddLast(key);
-
-        if (_fileStateKeysOrder.Count > fileWatcherParameters.Depth)
-        {
-            var oldestKey = _fileStateKeysOrder.First.Value;
-            _fileStateKeysOrder.RemoveFirst();
-            _filesStatesByKeys.Remove(oldestKey, out var oldestFileState);
-            await oldestFileState.DisposeAsync();
-        }
-    }
-    
-    private static async Task<bool> CheckFileCanBeLoadedAsync(string filePath)
-    {
-        long streamLength;
-        try
-        {
-            await using FileStream inputStream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.None);
-            streamLength = inputStream.Length;
-        }
-        catch (SystemException)
-        {
-            return false;
-        }
-
-        if (streamLength <= 0)
-            return false;
         
-        return true;
-    }
-    
-    private static DateTime GetLastModificationTimeUtc(string certificatePath)
-    {
-        return File.GetLastWriteTimeUtc(certificatePath);
+        FileState<TFileStateContent>? oldestFileState = null;
+
+        lock (_syncRoot)
+        {
+            _filesStatesByKeys[key] = fileState;
+            _fileStateKeysOrder.AddLast(key);
+
+            if (_fileStateKeysOrder.Count > fileWatcherParameters.Depth)
+            {
+                var oldestKey = _fileStateKeysOrder.First.Value;
+                _fileStateKeysOrder.RemoveFirst();
+                _filesStatesByKeys.TryRemove(oldestKey, out oldestFileState);
+            }
+        }
+        
+        if (oldestFileState != null)
+            await oldestFileState.DisposeAsync();
     }
 
     public async ValueTask DisposeAsync()
