@@ -61,22 +61,26 @@ public sealed class WatcherTests
         await watcher.WatchAsync(parameters.Object, CancellationToken.None);
         
         // Assert
+        // Simulates updating file state.
         await RunUntilKeyFoundAsync(async () =>
         {
             await AssertFileStateAsync(watcher, filePath, fileKey1, fileContent1);
         });
-        
         await RunUntilKeyFoundAsync(async () =>
         {
             await AssertFileStateAsync(watcher, filePath, fileKey2, fileContent2);
         });
-        
         await RunUntilKeyFoundAsync(async () =>
         {
             await AssertFileStateAsync(watcher, filePath, fileKey3, fileContent3);
         });
         
+        // Ensures that the first state has already deleted.
         await Assert.ThrowsAsync<KeyNotFoundException>(async () => await watcher.GetAsync(filePath, fileKey1, CancellationToken.None));
+        
+        // Ensures that the last state is the last added state.
+        var latestFileState = await watcher.GetLatestAsync(filePath, CancellationToken.None);
+        Assert.Equal(fileKey3, latestFileState.Key);
     }
 
     private static async Task RunUntilKeyFoundAsync(Func<Task> func)

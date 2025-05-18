@@ -21,6 +21,14 @@ public interface IFileState<TFileStateContent>
     FileStateIdentifier Identifier { get; init; }
 
     /// <summary>
+    /// Gets the unique key used to identify the file's state.
+    /// </summary>
+    /// <remarks>
+    /// The key serves as a shorthand identifier for operations involving the file's state. It is typically derived from or associated with other identifying information, such as the file path or content.
+    /// </remarks>
+    string Key { get; init; }
+
+    /// <summary>
     /// Gets the timestamp indicating the coordinated universal time (UTC) when the file was last modified.
     /// </summary>
     /// <remarks>
