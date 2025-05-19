@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using FileWatcher.Base;
 
 namespace FileWatcher.Internals;
 

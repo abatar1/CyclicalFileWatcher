@@ -1,4 +1,4 @@
-﻿namespace FileWatcher.Base;
+﻿namespace FileWatcher;
 
 /// <summary>
 /// Defines the parameters required for configuring and operating a file watcher.

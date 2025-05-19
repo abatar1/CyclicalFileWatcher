@@ -1,5 +1,4 @@
 ﻿using FileWatcher;
-using FileWatcher.Base;
 using FileWatcher.Internals;
 using Moq;
 using Xunit;

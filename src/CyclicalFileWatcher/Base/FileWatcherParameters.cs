@@ -1,4 +1,4 @@
-﻿namespace FileWatcher.Base;
+﻿namespace FileWatcher;
 
 public sealed class FileWatcherParameters<TFileStateContent> : IFileWatcherParameters<TFileStateContent>
     where TFileStateContent : IFileStateContent

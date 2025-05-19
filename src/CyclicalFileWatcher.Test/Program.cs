@@ -1,6 +1,5 @@
 ﻿using CyclicalFileWatcher.Test;
 using FileWatcher;
-using FileWatcher.Base;
 
 var filePath = args[0];
 const int fileCheckSecondsInterval = 5;
