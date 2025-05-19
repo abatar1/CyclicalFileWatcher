@@ -13,7 +13,7 @@ public interface IFileStateManagerConfiguration
     /// </summary>
     /// <remarks>
     /// This property determines the frequency of file monitoring. A shorter interval results in
-    /// more frequent checks, potentially increasing CPU usage. The value must be specified as a <see cref="TimeSpan"/>.
+    /// more frequent checks, potentially increasing CPU usage.
     /// </remarks>
     TimeSpan FileCheckInterval { get; init; }
 
