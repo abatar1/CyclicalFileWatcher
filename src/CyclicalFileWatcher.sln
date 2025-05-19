@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CyclicalFileWatcher", "Cycl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CyclicalFileWatcher.UnitTests", "CyclicalFileWatcher.UnitTests\CyclicalFileWatcher.UnitTests.csproj", "{90631A1E-7ABC-4AA9-BDC5-DD3C64099EE3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CyclicalFileWatcher.Test", "CyclicalFileWatcher.Test\CyclicalFileWatcher.Test.csproj", "{6501FF35-1C7D-4F23-866F-9B3501820131}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{90631A1E-7ABC-4AA9-BDC5-DD3C64099EE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90631A1E-7ABC-4AA9-BDC5-DD3C64099EE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90631A1E-7ABC-4AA9-BDC5-DD3C64099EE3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6501FF35-1C7D-4F23-866F-9B3501820131}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6501FF35-1C7D-4F23-866F-9B3501820131}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6501FF35-1C7D-4F23-866F-9B3501820131}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6501FF35-1C7D-4F23-866F-9B3501820131}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
