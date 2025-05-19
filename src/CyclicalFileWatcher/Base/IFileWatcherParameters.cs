@@ -32,7 +32,6 @@ public interface IFileWatcherParameters<TFileStateContent>
     /// <typeparam name="TFileStateContent">
     /// The type of the content that implements the <see cref="IFileStateContent"/> interface.
     /// </typeparam>
-    /// <param name="filePath">The path of the file used to generate the file state content.</param>
     FileStateContentFactory<TFileStateContent> FileStateContentFactory { get; init; }
 
     /// <summary>
