@@ -44,22 +44,17 @@ public sealed class WatcherTests(ITestOutputHelper output)
         // Simulates updating file state.
         await AssertFileAsync(watcher, filePath1, fileKeys1, fileContents1);
         await AssertFileAsync(watcher, filePath2, fileKeys2, fileContents2);
-        // Ensure dispose ends task.
-        await Assert.ThrowsAsync<TaskCanceledException>(() => watcher.DisposeAsync().AsTask());
-        // Ensure watcher does not allow getting an element from disposing.
-        await Assert.ThrowsAsync<TaskCanceledException>(() => watcher.GetLatestAsync(filePath1, CancellationToken.None));
+     
+        // Ensure watcher does not allow getting an element after disposing.
+        await watcher.DisposeAsync();
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => watcher.GetLatestAsync(filePath1, CancellationToken.None));
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => watcher.GetAsync(filePath1, fileKeys1[1], CancellationToken.None));
     }
 
     private static async Task AssertFileAsync(IFileWatcher<StringContent> watcher, string filePath, string[] fileKeys, string[] fileContents)
     {
-        await RunUntilKeyFoundAsync(async () =>
-        {
-            await AssertFileStateAsync(watcher, filePath, fileKeys[1], fileContents[1]);
-        });
-        await RunUntilKeyFoundAsync(async () =>
-        {
-            await AssertFileStateAsync(watcher, filePath, fileKeys[2], fileContents[2]);
-        });
+        await AssertUntilKeyFoundAsync(watcher, filePath, fileKeys[1], fileContents[1]);
+        await AssertUntilKeyFoundAsync(watcher, filePath, fileKeys[2], fileContents[2]);
         
         // Ensures that the first state has already deleted.
         await Assert.ThrowsAsync<KeyNotFoundException>(async () => await watcher.GetAsync(filePath, fileKeys[0], CancellationToken.None));
@@ -77,6 +72,7 @@ public sealed class WatcherTests(ITestOutputHelper output)
         fileProxyMock
             .Setup(x => x.FileExists(It.Is<string>(y => y == filePath)))
             .Returns(true);
+        // File proxy mock emulates a sequence of calls of GetLastWriteTimeUtc like if a file modified multiple times.
         fileProxyMock
             .SetupSequence(x => x.GetLastWriteTimeUtc(filePath))
             .Returns(new DateTime(2022, 1, 2))
@@ -113,27 +109,22 @@ public sealed class WatcherTests(ITestOutputHelper output)
         return parameters.Object;
     }
     
-    private static async Task RunUntilKeyFoundAsync(Func<Task> func)
+    private static async Task AssertUntilKeyFoundAsync(IFileWatcher<StringContent> watcher, string expectedFilePath, string expectedKey, string expectedContent)
     {
         while (true)
         {
             try
             {
-                await func.Invoke();
+                var fileState = await watcher.GetAsync(expectedFilePath, expectedKey, CancellationToken.None);
+                Assert.NotNull(fileState);
+                Assert.NotNull(fileState.Content);
+                Assert.Equal(expectedContent, fileState.Content.Content);
+                Assert.Equal(expectedFilePath, fileState.Identifier.FilePath);
                 break;
             }
             catch (KeyNotFoundException)
             {
             }
         }
-    }
-
-    private static async Task AssertFileStateAsync(IFileWatcher<StringContent> watcher, string expectedFilePath, string expectedKey, string expectedContent)
-    {
-        var fileState = await watcher.GetAsync(expectedFilePath, expectedKey, CancellationToken.None);
-        Assert.NotNull(fileState);
-        Assert.NotNull(fileState.Content);
-        Assert.Equal(expectedContent, fileState.Content.Content);
-        Assert.Equal(expectedFilePath, fileState.Identifier.FilePath);
     }
 }

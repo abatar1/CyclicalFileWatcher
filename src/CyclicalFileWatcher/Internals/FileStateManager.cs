@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -81,17 +80,17 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
     
     private async Task StopWatchingTaskAsync()
     {
-        if (_cancellationTokenSource.IsCancellationRequested) 
+        if (_cancellationTokenSource.IsCancellationRequested)
             return;
-        
+
         try
         {
             _cancellationTokenSource.Cancel();
-            await _watchingTask; 
+            await _watchingTask;
         }
-        catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is TaskCanceledException))
+        catch (TaskCanceledException)
         {
-            // Expected cancellation, suppress the exception.
+            // Expected cancellation
         }
     }
 

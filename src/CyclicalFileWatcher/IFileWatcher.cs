@@ -21,6 +21,7 @@ public interface IFileWatcher<TFileStateContent> : IAsyncDisposable
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
     /// <exception cref="ArgumentException">Thrown when the depth in parameters is less than or equal to 0.</exception>
     /// <exception cref="FileNotFoundException">Thrown when the specified file is not found on the given path.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when IFileWatcher has been disposed.</exception>
     Task WatchAsync(IFileWatcherParameters<TFileStateContent> parameters, CancellationToken cancellationToken);
 
     /// <summary>
@@ -32,6 +33,7 @@ public interface IFileWatcher<TFileStateContent> : IAsyncDisposable
     /// <returns>A task representing the asynchronous operation. The task result contains the state of the specified file.</returns>
     /// <exception cref="FileNotFoundException">Thrown if the file is not found at the specified file path. Ensure WatchAsync has been called first.</exception>
     /// <exception cref="KeyNotFoundException">Thrown if the file is found but the specified key is not available.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when IFileWatcher has been disposed.</exception>
     Task<IFileState<TFileStateContent>> GetAsync(string filePath, string fileKey, CancellationToken cancellationToken);
 
     /// <summary>
@@ -41,6 +43,7 @@ public interface IFileWatcher<TFileStateContent> : IAsyncDisposable
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
     /// <returns>The latest state of the specified file.</returns>
     /// <exception cref="FileNotFoundException">Thrown when the file is not found at the specified path. Ensure that <c>WatchAsync</c> has been called.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when IFileWatcher has been disposed.</exception>
     Task<IFileState<TFileStateContent>> GetLatestAsync(string filePath, CancellationToken cancellationToken);
 
     /// <summary>
@@ -50,6 +53,7 @@ public interface IFileWatcher<TFileStateContent> : IAsyncDisposable
     /// <param name="actionOnUpdate">The action to execute when the file state is updated. This function provides the updated file state.</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
     /// <returns>A task that represents the asynchronous operation, returning a <see cref="FileSubscription"/> instance containing subscription details.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown when IFileWatcher has been disposed.</exception>
     Task<FileSubscription> SubscribeAsync(string filePath, Func<IFileState<TFileStateContent>, Task> actionOnUpdate, CancellationToken cancellationToken);
 
     /// <summary>
