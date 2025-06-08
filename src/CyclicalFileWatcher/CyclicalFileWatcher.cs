@@ -19,27 +19,29 @@ public sealed class CyclicalFileWatcher<TFileStateContent> : IFileWatcher<TFileS
 {
     private readonly IFileStateManager<TFileStateContent> _fileStateManager;
     private readonly FileSubscriptionManager<TFileStateContent> _subscriptionManager;
+    private readonly IFileStateStorageRepository<TFileStateContent> _repository;
     
     public CyclicalFileWatcher(IFileStateManagerConfiguration configuration)
     {
         _subscriptionManager = new FileSubscriptionManager<TFileStateContent>();
         var fileProxy = new FileSystemProxy();
-        var repository = new FileStateStorageRepository<TFileStateContent>(fileProxy);
+        _repository = new FileStateStorageRepository<TFileStateContent>(fileProxy);
         var lockProvider = new ReadWriteLockProvider();
-        var processor = new FileWatchProcessor<TFileStateContent>(configuration, _subscriptionManager, lockProvider, repository);
-        _fileStateManager = new FileStateManager<TFileStateContent>(repository, processor, lockProvider, fileProxy);
+        var processor = new FileWatchProcessor<TFileStateContent>(configuration, _subscriptionManager, lockProvider, _repository);
+        _fileStateManager = new FileStateManager<TFileStateContent>(_repository, processor, lockProvider, fileProxy);
     }
     
     internal CyclicalFileWatcher(IFileStateManagerConfiguration configuration, 
         IFileStateStorageRepository<TFileStateContent> repository, 
         IFileSystemProxy fileSystemProxy)
     {
+        _repository = repository;
         _subscriptionManager = new FileSubscriptionManager<TFileStateContent>();
         var lockProvider = new ReadWriteLockProvider();
-        var processor = new FileWatchProcessor<TFileStateContent>(configuration, _subscriptionManager, lockProvider, repository);
-        _fileStateManager = new FileStateManager<TFileStateContent>(repository, processor, lockProvider, fileSystemProxy);
+        var processor = new FileWatchProcessor<TFileStateContent>(configuration, _subscriptionManager, lockProvider, _repository);
+        _fileStateManager = new FileStateManager<TFileStateContent>(_repository, processor, lockProvider, fileSystemProxy);
     }
-    
+
     public Task WatchAsync(IFileWatcherParameters<TFileStateContent> parameters, CancellationToken cancellationToken)
     {
         return _fileStateManager.WatchAsync(parameters, cancellationToken);
@@ -69,5 +71,6 @@ public sealed class CyclicalFileWatcher<TFileStateContent> : IFileWatcher<TFileS
     {
         await _fileStateManager.DisposeAsync();
         await _subscriptionManager.DisposeAsync();
+        await _repository.DisposeAsync();
     }
 }

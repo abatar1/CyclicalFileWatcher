@@ -81,7 +81,8 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
     
     private async Task StopWatchingTaskAsync()
     {
-        if (_cancellationTokenSource.IsCancellationRequested) return;
+        if (_cancellationTokenSource.IsCancellationRequested) 
+            return;
         
         try
         {
@@ -99,8 +100,6 @@ internal sealed class FileStateManager<TFileStateContent> : IFileStateManager<TF
         await StopWatchingTaskAsync();
         await CastAndDispose(_cancellationTokenSource);
         await CastAndDispose(_watchingTask);
-
-        await _fileStateStorageRepository.DisposeAsync();
 
         return;
 

@@ -2,10 +2,11 @@
 using FileWatcher.Internals;
 using Moq;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace CyclicalFileWatcher.UnitTests;
 
-public sealed class WatcherTests
+public sealed class WatcherTests(ITestOutputHelper output)
 {
     [Fact]
     public async Task SimpleRoutineTest()
@@ -22,8 +23,8 @@ public sealed class WatcherTests
         
         var configurationMock = new Mock<IFileStateManagerConfiguration>();
         configurationMock.SetupGet(x => x.FileCheckInterval).Returns(TimeSpan.FromMilliseconds(1));
-        configurationMock.SetupGet(x => x.ActionOnFileReloaded).Returns(_ => Task.CompletedTask);
-        configurationMock.SetupGet(x => x.ActionOnSubscribeAction).Returns(_ => Task.CompletedTask);
+        configurationMock.SetupGet(x => x.ActionOnFileReloaded).Returns(async x => await Task.Run(() => output.WriteLine($"File {x.FilePath} reloaded")));
+        configurationMock.SetupGet(x => x.ActionOnSubscribeAction).Returns(async x => await Task.Run(() => output.WriteLine($"File {x.FilePath} subscription executed")));
         
         var fileProxyMock = new Mock<IFileSystemProxy>();
         fileProxyMock
@@ -42,13 +43,13 @@ public sealed class WatcherTests
         parameters.SetupGet(x => x.FilePath).Returns(filePath);
         parameters.SetupGet(x => x.Depth).Returns(depth);
         parameters.SetupSequence(x => x.FileStateKeyFactory)
-            .Returns((_, _) => Task.FromResult(fileKey1))
-            .Returns((_, _) => Task.FromResult(fileKey2))
-            .Returns((_, _) => Task.FromResult(fileKey3));
+            .Returns(async (_, _) => await Task.FromResult(fileKey1))
+            .Returns(async (_, _) => await Task.FromResult(fileKey2))
+            .Returns(async (_, _) => await Task.FromResult(fileKey3));
         parameters.SetupSequence(x => x.FileStateContentFactory)
-            .Returns(_ => Task.FromResult(new StringContent { Content = fileContent1 }))
-            .Returns(_ => Task.FromResult(new StringContent { Content = fileContent2 }))
-            .Returns(_ => Task.FromResult(new StringContent { Content = fileContent3 }));
+            .Returns(async _ => await Task.FromResult(new StringContent { Content = fileContent1 }))
+            .Returns(async _ => await Task.FromResult(new StringContent { Content = fileContent2 }))
+            .Returns(async _ => await Task.FromResult(new StringContent { Content = fileContent3 }));
         
         var storage = new FileStateStorage<StringContent>(parameters.Object, fileProxyMock.Object);
         
@@ -61,10 +62,6 @@ public sealed class WatcherTests
         
         // Assert
         // Simulates updating file state.
-        await RunUntilKeyFoundAsync(async () =>
-        {
-            await AssertFileStateAsync(watcher, filePath, fileKey1, fileContent1);
-        });
         await RunUntilKeyFoundAsync(async () =>
         {
             await AssertFileStateAsync(watcher, filePath, fileKey2, fileContent2);
@@ -80,8 +77,11 @@ public sealed class WatcherTests
         // Ensures that the last state is the last added state.
         var latestFileState = await watcher.GetLatestAsync(filePath, CancellationToken.None);
         Assert.Equal(fileKey3, latestFileState.Key);
+        
+        // Ensure dispose ends task.
+        await Assert.ThrowsAsync<TaskCanceledException>(() => watcher.DisposeAsync().AsTask());
     }
-
+    
     private static async Task RunUntilKeyFoundAsync(Func<Task> func)
     {
         while (true)

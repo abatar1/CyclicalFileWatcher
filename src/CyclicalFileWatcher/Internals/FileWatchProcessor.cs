@@ -12,13 +12,7 @@ internal sealed class FileWatchProcessor<TFileStateContent>(
     IFileStateStorageRepository<TFileStateContent> repository)
     where TFileStateContent : IFileStateContent
 {
-    public Task CreateWatchingTask(CancellationToken cancellationToken)
-    {
-        return Task.Factory.StartNew(async () => await WatchInternalAsync(cancellationToken), 
-            cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-    }
-
-    private async Task WatchInternalAsync(CancellationToken cancellationToken)
+    public async Task CreateWatchingTask(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -86,10 +80,15 @@ internal sealed class FileWatchProcessor<TFileStateContent>(
             .ToList();
         foreach (var exception in exceptions)
         {
-            if (exception is FileWatcherReloadException fileWatcherReloadException)
-                await configuration.ActionOnFileReloadFailed.Invoke(fileWatcherReloadException);
-            else if (exception is FileWatcherSubscriptionException fileWatcherSubscriptionException)
-                await configuration.ActionOnSubscribeActionFailed.Invoke(fileWatcherSubscriptionException);
+            switch (exception)
+            {
+                case FileWatcherReloadException fileWatcherReloadException:
+                    await configuration.ActionOnFileReloadFailed.Invoke(fileWatcherReloadException);
+                    break;
+                case FileWatcherSubscriptionException fileWatcherSubscriptionException:
+                    await configuration.ActionOnSubscribeActionFailed.Invoke(fileWatcherSubscriptionException);
+                    break;
+            }
         }
     }
 }

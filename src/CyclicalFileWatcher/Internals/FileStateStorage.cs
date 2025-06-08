@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +10,7 @@ internal sealed class FileStateStorage<TFileStateContent> : IFileStateStorage<TF
     where TFileStateContent : IFileStateContent
 {
     private readonly AsyncLazy<IFileWatcherParameters<TFileStateContent>> _fileWatcherParameters;
-    private readonly ConcurrentDictionary<string, FileState<TFileStateContent>> _filesStatesByKeys = new();
+    private readonly Dictionary<string, FileState<TFileStateContent>> _filesStatesByKeys = new();
     private readonly IFileSystemProxy _fileSystemProxy;
     private readonly LinkedList<string> _fileStateKeysOrder = [];
     
@@ -33,9 +32,7 @@ internal sealed class FileStateStorage<TFileStateContent> : IFileStateStorage<TF
     {
         var parameters = await _fileWatcherParameters.Task.WaitAsync(cancellationToken);
         
-        if (!_filesStatesByKeys.TryGetValue(key, out var file))
-            throw new KeyNotFoundException($"File {parameters.FilePath} with key {key} not found or already expired");
-        return file;
+        return GetInternal(key, parameters.FilePath);
     }
     
     public async Task<FileState<TFileStateContent>> GetLatestAsync(CancellationToken cancellationToken)
@@ -45,14 +42,15 @@ internal sealed class FileStateStorage<TFileStateContent> : IFileStateStorage<TF
         var latestKey = _fileStateKeysOrder.Last?.Value;
         if (latestKey == null)
             throw new InvalidOperationException($"No files added yet, could not retrieve latest file from filepath {parameters.FilePath}, seems like a bug");
-        return await GetAsync(latestKey, cancellationToken);
+        
+        return GetInternal(latestKey, parameters.FilePath);
     } 
     
     public async Task<bool> HasChangedAsync(CancellationToken cancellationToken)
     {
         var parameters = await _fileWatcherParameters.Task.WaitAsync(cancellationToken);
         
-        FileState<TFileStateContent> latestFileState;
+        IFileState<TFileStateContent> latestFileState;
         try
         {
             latestFileState = await GetLatestAsync(cancellationToken);
@@ -79,6 +77,13 @@ internal sealed class FileStateStorage<TFileStateContent> : IFileStateStorage<TF
         return true;
     }
     
+    private FileState<TFileStateContent> GetInternal(string key, string filePath)
+    {
+        if (!_filesStatesByKeys.TryGetValue(key, out var file))
+            throw new KeyNotFoundException($"File {filePath} with key {key} not found or already expired");
+        return file;
+    }  
+    
     private async Task AppendFileStateAsync(IFileWatcherParameters<TFileStateContent> fileWatcherParameters)
     {
         var fileStateContent = await fileWatcherParameters.FileStateContentFactory.Invoke(fileWatcherParameters.FilePath);
@@ -99,7 +104,7 @@ internal sealed class FileStateStorage<TFileStateContent> : IFileStateStorage<TF
         {
             var oldestKey = _fileStateKeysOrder.First.Value;
             _fileStateKeysOrder.RemoveFirst();
-            _filesStatesByKeys.TryRemove(oldestKey, out var oldestFileState);
+            _filesStatesByKeys.Remove(oldestKey, out var oldestFileState);
             await oldestFileState.DisposeAsync();
         }
     }
