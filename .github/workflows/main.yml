@@ -13,7 +13,7 @@ jobs:
       test-project-path: 'src/CyclicalFileWatcher.UnitTests'
   
   deploy_main_nuget:
-    uses: ./.github/workflows/deploy_nuget.yml
+    uses: abatar1/DotNetNugetWorkflow/.github/workflows/deploy-nuget.yml@v1.0.0
     needs: [ unit_tests ]
     with:
       dotnet-version: '9'
